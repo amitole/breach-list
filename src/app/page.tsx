@@ -1,103 +1,144 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState, useRef, useCallback } from "react";
+import { fetchBreaches, Breach } from "./services/breachService";
+import BreachCard from "./components/BreachCard";
+import ThemeToggle from "./components/ThemeToggle";
+import LoadingSpinner from "./components/LoadingSpinner";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [breaches, setBreaches] = useState<Breach[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const observer = useRef<IntersectionObserver | null>(null);
+
+  useEffect(() => {
+    loadBreaches();
+    const savedExpandedId = localStorage.getItem("expandedBreachId");
+    if (savedExpandedId) {
+      setExpandedId(savedExpandedId);
+    }
+  }, []);
+
+  // Save expanded state to localStorage whenever it changes
+  useEffect(() => {
+    if (expandedId) {
+      localStorage.setItem("expandedBreachId", expandedId);
+    } else {
+      localStorage.removeItem("expandedBreachId");
+    }
+  }, [expandedId]);
+
+  const loadBreaches = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data = await fetchBreaches(0);
+      setBreaches(data);
+      setOffset(data.length);
+      setHasMore(data.length > 0);
+    } catch (err) {
+      setError("Failed to load breaches. Please try again.");
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadMoreBreaches = useCallback(async () => {
+    if (isLoading || !hasMore) return;
+
+    setIsLoading(true);
+
+    try {
+      const data = await fetchBreaches(offset);
+
+      if (data.length === 0) {
+        setHasMore(false);
+      } else {
+        setBreaches((prev) => [...prev, ...data]);
+        setOffset((prev) => prev + data.length);
+      }
+    } catch (err) {
+      setError("Failed to load more breaches. Please try again.");
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isLoading, hasMore, offset]);
+
+  const lastBreachElementRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (isLoading) return;
+
+      if (observer.current) observer.current.disconnect();
+
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          loadMoreBreaches();
+        }
+      });
+
+      if (node) observer.current.observe(node);
+    },
+    [isLoading, hasMore, loadMoreBreaches]
+  );
+
+  const handleCardExpand = (breachId: string) => {
+    setExpandedId((currentId) => {
+      const newId = currentId === breachId ? null : breachId;
+      return newId;
+    });
+  };
+
+  return (
+    <main className="max-w-4xl mx-auto p-4 sm:p-6">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold">Data Breach Viewer</h1>
+        <ThemeToggle />
+      </div>
+
+      {error && (
+        <div className="bg-red-500 bg-opacity-10 text-red-500 p-4 rounded-lg mb-6">
+          {error}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-4">
+        {breaches.map((breach, index) => {
+          if (breaches.length === index + 1) {
+            return (
+              <div ref={lastBreachElementRef} key={breach.Name}>
+                <BreachCard
+                  breach={breach}
+                  isExpanded={expandedId === breach.Name}
+                  onExpand={handleCardExpand}
+                />
+              </div>
+            );
+          } else {
+            return (
+              <BreachCard
+                key={breach.Name}
+                breach={breach}
+                isExpanded={expandedId === breach.Name}
+                onExpand={handleCardExpand}
+              />
+            );
+          }
+        })}
+      </div>
+
+      {isLoading && <LoadingSpinner />}
+
+      {!isLoading && !hasMore && breaches.length > 0 && (
+        <p className="text-center py-6 opacity-70">End of the list.</p>
+      )}
+    </main>
   );
 }

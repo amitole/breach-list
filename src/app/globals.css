@@ -3,6 +3,28 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --card-bg: #f5f5f5;
+  --border-color: #e0e0e0;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+}
+
+html[data-theme="light"] {
+  --background: #ffffff;
+  --foreground: #171717;
+  --card-bg: #f5f5f5;
+  --border-color: #e0e0e0;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+}
+
+html[data-theme="dark"] {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --card-bg: #1f1f1f;
+  --border-color: #333333;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
 }
 
 @theme inline {
@@ -16,11 +38,26 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --card-bg: #1f1f1f;
+    --border-color: #333333;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans, sans-serif);
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.breach-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.breach-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
